@@ -1,0 +1,268 @@
+from Tkinter import *
+import copy
+import random
+from random import choice
+import time
+import math
+import pickle#taken from http://docs.python.org/2/library/pickle.html
+from tkFileDialog import asksaveasfilename
+
+#the button pressed functions are based on class notes
+
+class levelEditor():#editor class
+    
+    def initImages(self): #this imports the images that
+                           #I am using on the board
+        self.gif1 = PhotoImage(file = 'logo.gif')
+        self.block1=PhotoImage(file = 'blockimages.gif')
+        self.grass=PhotoImage(file = 'grass.gif')
+   
+    def initEditor(self):  #to initialize everything i need for the game                               
+        self.Editorboard=self.initEditorboard()
+        self.initImages()
+        self.typ="grass"
+        self.ccount=0
+        self.empty=None #some tags for the graphics on board
+        self.gras=None
+        self.bloc=None
+        self.grassCount=0
+        self.blockCount=0
+        self.gras2=None
+        self.bord=None
+        (self.choi,self.mod,self.col)=(None,None,None)
+        self.bloc2=None
+        self.blocM=None
+        self.grasM=None
+        self.count=0
+        self.modes={0:"Draw",1:"Erase"}
+        self.Mode=self.modes[0]
+        self.Colorpos={1:"yellow",2:"blue",3:"black",4:"pink",5:"red",6:"brown"
+                       ,0:"orange",7:"white"}
+        self.maxColor=len(self.Colorpos)
+        self.color=self.Colorpos[0]
+        self.redrawAllEditor()
+
+    
+    def initEditorboard(self):#this is to initialize the board on which drawing
+                                #will happen
+        rows=self.rows
+        cols=self.cols
+        board = [[None]*self.rows for i in xrange(self.cols)]
+        for row in range((rows/4)*2+1,rows):
+            col=0
+            while col<(row%10)-1:
+                board[row][col]="grass"
+                board[row][cols-col-1]="grass"
+                col+=1
+        return copy.deepcopy(board)
+        
+    def redrawAllEditor(self): #draws everything on the board
+        self.canvas.delete(ALL)
+        self.drawEditorBoard()
+       
+    def writeData(self):  #writes data using pickle in a .pk file
+        data1 = (self.Editorboard,self.color)
+        output = open(self.name, 'wb')
+        pickle.dump(data1, output)
+        output.close()
+
+        
+    def button1Pressed(self): #reacts to press of "block" button
+        self.typ="block"
+        
+    def button2Pressed(self):#reacts to press of "grass" button
+        self.typ="grass"
+      
+
+    #http://stackoverflow.com
+    def box(self): #for the save in directory
+        self.name = asksaveasfilename(defaultextension=".pk")
+    ####thats all ####
+        
+    def button3Pressed(self): #opens the save folder and exits the screen
+        self.box() 
+        if self.name:
+           self.writeData()
+           self.root.destroy()
+
+    def drawButtons(self): #to draw the buttons on the screen
+        margin=self.margin
+        self.button1 = Button(self.canvas, text="Block",
+                              command=self.button1Pressed)
+        self.button2= Button(self.canvas, text="Grass",
+                              command=self.button2Pressed)
+        self.button3= Button(self.canvas, text="Done",
+                              command=self.button3Pressed)
+        self.canvas.create_window(2*margin, margin/2,window=self.button1)
+        self.canvas.create_window(3*margin, margin/2,window=self.button2)
+        self.canvas.create_window(9*margin+5,self.height-margin,
+                                  window=self.button3)
+    
+    def drawEditorBoard(self): #draws the board initially
+        margin=self.margin
+        bord=margin/10
+        self.bord=self.canvas.create_rectangle(margin-margin/bord,
+            margin-margin/bord,self.width-margin+margin/bord,
+                                     self.height-margin+margin/bord,fill="cyan")
+        self.col = self.canvas.create_text(margin*5-30,margin/2,
+          text="Color (press c):",font="arial 18 bold",fill="white")
+        self.canvas.create_rectangle(margin*5+40,margin/2-10,
+                                     margin*6+50,margin-30,fill=self.color)
+        self.choi = self.canvas.create_text(margin,margin/2,text="Choices :",
+                                font="arial 18 bold",fill="white")
+        self.mod = self.canvas.create_text(8*margin,margin/2,
+        text="Mode(press m): %s"%(self.Mode),font="arial 18 bold",fill="white")
+        self.drawButtons()
+        for row in range(self.rows): #to put grass initially
+            for col in range(self.cols):
+                if self.Editorboard[row][col]==None:
+                    self.drawBlocks(row,col,self.color)
+                elif self.Editorboard[row][col]== "grass":
+                    self.drawBlocks(row,col,"green")
+                elif self.Editorboard[row][col]== "block":
+                    self.drawBlocks(row,col,"brown")
+        self.DrawSquare(self.width/2,self.height/2)
+
+           
+    def DrawSquare(self,x,y): #this places the block or grass on board
+        margin=self.margin
+        cellsize=self.cellsize/2
+        left= margin
+        top= y - cellsize
+        limitLeft=margin
+        limitRight=self.width-margin-(3.0/2)*cellsize
+        topLimt=margin
+        bottomLimit=self.height -margin-(3.0/2)*cellsize
+        if limitLeft<=left<limitRight and  topLimt<=top<=bottomLimit :
+            
+            self.grasM =self.canvas.create_image(left,top, image =
+                                                 self.grass,anchor=NW)
+            self.canvas.create_text(left+15,top+15,text=str(self.grassCount),
+                                    fill="black",font="arial 18 bold")
+            top=top+2*cellsize
+            self.blocM=self.canvas.create_image(left,top, image =
+                                                self.block1,anchor=NW)
+            self.canvas.create_text(left+15,top+15,text=str(self.blockCount),
+                                    fill="black",font="arial 18 bold" )
+                
+
+
+    def drawBlocks(self,row,col,color): #draws the blocks
+        margin=self.margin
+        cellsize=self.cellsize
+        left=margin+col*cellsize
+        top=margin+row*cellsize
+        right=left+cellsize
+        bottom=top+cellsize
+        if color==self.color:
+            self.canvas.create_rectangle(left,top,right,bottom,fill=self.color)
+        elif color=="green":
+            self.gras2 = self.canvas.create_image(left,top, image = self.grass,
+                                          anchor=NW)
+        elif color=="brown":
+            self.bloc2=self.canvas.create_image(left,top, image = self.block1,
+                                                anchor=NW)
+ 
+
+    def deltaDraw(self,x,y): #delta graphics 
+        self.deltaDrawSquare(x,y)
+        
+
+    def deltaDrawSquare(self,x,y): #for making the moving the blocks
+        margin=self.margin
+        cellsize=self.cellsize/2
+        left= x-cellsize
+        top= y - cellsize
+        limitLeft=margin
+        limitRight=self.width-margin-(3.0/2)*cellsize
+        topLimt=margin
+        bottomLimit=self.height -margin-(3.0/2)*cellsize
+        grasM=self.grasM
+        blockM=self.blocM
+        if limitLeft<=left<limitRight and  topLimt<=top<=bottomLimit :
+            if self.typ=="grass":
+                self.canvas.coords(grasM,(left,top))                
+            elif self.typ=="block":
+                self.canvas.coords(blockM,(left,top))                
+                        
+    def mouseMotion(self,event): #keeps track of mouse motion
+        if self.Mode=="Draw":
+            self.deltaDraw(event.x,event.y)
+
+    def legalDrop(self,x,y): #checks if where user is placing piece
+                            #is legal or not
+        margin=self.margin
+        left=margin
+        top=margin
+        right= left+ (self.cols-1)*self.cellsize
+        bottom=top + (self.rows-1)*self.cellsize
+        if left<=x<=right and top<=y<=bottom:
+            return True
+        else:
+            return False
+
+    def calculPos(self,x,y): #calculates where the piece is placed
+        margin=self.margin
+        cellsize=self.cellsize
+        width=x-margin
+        height=y - margin
+        row=int(math.ceil(((height*1.0)/cellsize))-1)
+        col=int(math.ceil(((width*1.0)/cellsize))-1)
+        return (row,col)
+
+        
+    def mousePressed(self,event):#reacts to mousepress events
+        #for placing block on board
+        topLimit=self.margin
+        if self.Mode=="Draw":
+            if self.legalDrop(event.x,event.y):
+                (row,col)=self.calculPos(event.x,event.y)
+                self.Editorboard[row][col]=self.typ  #either block or grass
+                if self.typ=="grass":
+                    self.grassCount+=1
+                else:
+                    self.blockCount+=1
+                self.redrawAllEditor()
+        elif self.Mode=="Erase":
+            if self.legalDrop(event.x,event.y):
+                (row,col)=self.calculPos(event.x,event.y)
+                self.Editorboard[row][col]=None
+                if self.typ=="grass":
+                    self.grassCount-=1
+                else:
+                    self.blockCount-=1
+                if self.grassCount<0:
+                    self.grassCount=0
+                if self.blockCount<0:
+                    self.blockCount=0
+                self.redrawAllEditor()
+       
+
+    def keyPressed(self,event):#used for changing mode and color
+        if event.char=="c":
+            self.ccount+=1
+            self.color=self.Colorpos[self.ccount%self.maxColor]
+        if event.char=="m":
+            self.count+=1
+            self.Mode=self.modes[self.count%2]
+        self.redrawAllEditor()
+
+    def runEditor(self): #used to run the editor
+        self.root=Tk()
+        self.cellsize=30
+        self.rows=20
+        self.cols=20
+        self.margin=80
+        self.width = self.cols*self.cellsize + 2*self.margin
+        self.height = (self.rows * self.cellsize) + 2*self.margin
+        self.canvas=Canvas(self.root,width=self.width, height=self.height,
+                           bg="black")
+        self.canvas.pack()
+        self.initEditor() #initilaizes the editor
+        self.root.bind("<Button-1>", lambda event:self.mousePressed(event))
+        self.root.bind("<Motion>", lambda event :self.mouseMotion(event))
+        self.root.bind("<Key>", lambda event: self.keyPressed(event))
+        self.root.mainloop()
+              
+
+
