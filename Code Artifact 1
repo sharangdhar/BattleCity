@@ -1,0 +1,1408 @@
+#Note all images taken from google images...
+
+
+#there are only Two testfunctions since most of the code is graphics
+######## Game Begins ###################
+from Tkinter import *
+import copy
+import random
+from random import choice
+import time
+from levelEditor import levelEditor
+import pickle#taken from http://docs.python.org/2/library/pickle.html
+from tkFileDialog import askopenfilename
+#the button pressed functions are based on class notes
+
+class BattleCity(object): #battle city class
+    
+    def init(self,board,color): #initializes the board to play on
+        if board==None :
+            self.board=self.defineBoard()
+            self.backColor = "black"
+        else :
+            self.board=board
+            self.backColor=color
+        if self.board!=None:
+            self.board[self.rows-3][self.cols/2+1]="Defender"
+            self.board[self.rows-1][self.cols/2]="eagle"
+            self.board[self.rows-1][self.cols/2-1]="eagle"
+            self.initvars()
+            if self.countbut==0: #used to get around initializing again
+                self.selection="Defender" #default
+            self.initvars2()
+            self.initImages()
+            self.animationInit()
+            self.initDictsTime()
+            self.initEnemy()
+            self.assignDir()
+            self.redrawAll()
+            self.timeWini=time.time()
+        
+        
+    def initvars(self): #initializes the variables for gameplay
+        self.DefenderHits=0
+        self.gameOver=False
+        self.DefendermaxHits=9
+        self.enemymaxHits=3
+        self.eaglelife=3
+        
+    def animationInit(self): #initializes the variables for animations
+        self.nextMove=True
+        self.enemynextMove=True
+        self.enemyUsernextMove=True
+        self.ispaused=False
+        self.dictJ={"0":1,"1":1,"2":1}
+        self.i=1
+        self.j=1
+        self.u=1
+        
+    def initvars2(self): #initializes the variables for gameplay
+        self.choice = "None"
+        self.other="None"
+        self.timerStop=False
+        self.winner=None
+        self.gameOn=False
+        self.released=True
+        self.eagledrawCount=0
+        self.timerCount=0
+        self.countdown=False #timer to start
+        self.countDowntimer=3#timer to start
+        self.botrotDir=(-1,0)
+        self.UenemybotrotDir=(1,0)
+        self.enemybotDir={"0":(1,0),"1":(1,0),"2":(1,0)}
+        self.switchCount=0
+        self.totalenenmyLives=3*self.enemymaxHits
+        self.totalDefenderLives = 9
+        self.splashscreenOn=True
+        self.optionScreenOn=False
+
+    def initDictsTime(self):#initializes the time based variables
+        self.hitCount={}
+        self.userDefenderbotmoves={}
+        self.userDefenderbotmoves["Defender"]=self.randomizeDir()
+        self.enemyMoves={}
+        self.initialTime=time.time() #time after which fire enemy bullet
+        self.powerinitialtime=time.time()
+        self.moveinittime=time.time()
+        self.Defenetimeini = time.time()
+        self.moveEneDeftimeini = time.time()
+        
+    def initImages(self): #initialzes all the images needed in the game
+        self.gif1 = PhotoImage(file = 'logo.gif')
+        self.block1=PhotoImage(file = 'blockimages.gif')
+        self.block2=PhotoImage(file = 'block2_converted.gif')
+        self.block3=PhotoImage(file = 'block3_converted.gif')
+        self.grass=PhotoImage(file = 'grass.gif')
+        self.powerup = PhotoImage(file = 'powerUp.gif')
+        self.eagle=PhotoImage(file ='eagle.gif')
+        self.bulletImage()
+        self.defenderbotImages()
+        self.enemybotImages()
+
+
+    def bulletImage(self):#initializes bullet images
+         self.bulletN=PhotoImage(file = 'bulletN.gif')
+         self.bulletW=PhotoImage(file = 'bulletW.gif')
+         self.bulletS=PhotoImage(file = 'bulletS.gif')
+         self.bulletE=PhotoImage(file = 'bulletE.gif')
+         
+    def defenderbotImages(self): #initializes defender bot images
+        self.DefN = PhotoImage(file = 'UbN.gif')
+        self.DefS = PhotoImage(file = 'UbS.gif')
+        self.DefE = PhotoImage(file = 'UbE.gif')
+        self.DefW = PhotoImage(file = 'UbW.gif')
+
+    def enemybotImages(self):#initializes enemy bot images
+        self.enemyN =PhotoImage(file = 'EneN.gif')
+        self.enemyS=PhotoImage(file = 'EneS.gif')
+        self.enemyW=PhotoImage(file = 'EneW.gif')
+        self.enemyE=PhotoImage(file = 'EneE.gif')
+        self.UenemyN=PhotoImage(file = 'UserEN.gif')
+        self.UenemyE=PhotoImage(file = 'UserEE.gif')
+        self.UenemyW=PhotoImage(file = 'UserEW.gif')
+        self.UenemyS=PhotoImage(file = 'UserES.gif')
+               
+    def redrawAll(self): #redraws everything on the board
+        self.canvas.delete(ALL)
+        if self.timerStop==True and self.ispaused==True:
+            self.drawBoard()
+            self.drawPaused()
+        elif self.gameOn==True:#if the game is on
+            self.drawBoard()
+            self.drawScore()
+            if self.gameOver==True:
+                self.drawGameOver()
+        elif self.gameOn==False and self.countdown==False:
+            self.drawsplashScreen()
+        elif self.countdown==True:
+            self.drawBoard()
+            self.drawTimer()
+
+    def drawPaused(self): #draws the pause game
+        msg="Paused"
+        self.canvas.create_text(self.width/2,self.height/2,text=msg,
+                                font="arial 28 bold",fill="white")
+            
+    def drawTimer(self): #draws countdown timer before the game
+        top=self.height/2
+        left=self.width/2
+        msg=str(self.countDowntimer)
+        self.canvas.create_text(top,left,text=msg,font="arial 42 bold"
+                                ,fill="white")
+        
+    def timerFired(self): #this is used to keep track of time base events
+        if self.timerStop==False:
+            self.isgameOver()
+            if self.gameOn==True:
+                if self.gameOver==False:
+                    self. timerFirHelper()
+                elif self.gameOver==True:
+                    self.timerCount+=1
+                    if self.timerCount==120:
+                        self.root.destroy()
+                        return
+                if self.canvas:
+                    self.redrawAll()
+            elif self.gameOn==False and self.countdown==True:
+                self.timerCount1()
+                self.redrawAll()
+        def f():
+            self.timerFired()
+        delay=30
+        self.canvas.after(delay,f)
+        
+
+    def timerFirHelper(self): #used as a helper for timerFired
+        self.moveEneDeftimefin = time.time()
+        if self.selection=="enemy": #here
+            if self.moveEneDeftimefin-self.moveEneDeftimeini>0.400:
+                self.userBotBullet() #generate the bullet
+                self.moveEneDeftimeini = time.time()
+        self.finalTime=time.time()
+        if self.finalTime - self.initialTime>=0.700:
+            self.enemyBullet()#generate after two calls
+            self.initialTime=time.time()
+        self.powerfinaltime=time.time()
+        if self.powerfinaltime-self.powerinitialtime>=5.000:
+            self.powerUps()
+            self.powerinitialtime=time.time()
+        self.movefintime=time.time()
+        if self.selection=="Defender":
+            if self.movefintime - self.moveinittime>0.150:
+                self.moveEnemy()
+                self.moveinittime=time.time()
+            self.moveBullet()
+        else:
+            self.timerHelper2()
+
+    def timerHelper2(self):#used as a helper for timerFired
+        self.Defenetimefin = time.time()
+        if (self.Defenetimefin - self.Defenetimeini >0.100):
+            self.moveUserDefenderbot()#move defender bot
+            self.Defenetimeini = time.time()
+        self.moveBullet()
+        if self.movefintime - self.moveinittime>=0.150:
+            self.moveEnemy() #move enemy
+            self.moveinittime=time.time()
+        
+
+    def timerCount1(self): #used to count in countdown timer
+        self.timeY=time.time()
+        if self.timeY - self.timeX>=1.000:
+            self.countDowntimer-=1
+            self.timeX=time.time()
+            if self.countDowntimer==0:
+                self.countdown=False
+                self.gameOn=True
+               
+    def shooting(self,event):#used to shoot bullets
+        if self.nextMove==True:
+            self.timeWfin=time.time()
+            if self.timeWfin - self.timeWini>0.300:#can shoot only after
+                                                # 0.3 seconds
+                if event.keysym=="space": #use space to shoot
+                    self.DefenderBullet()
+                self.timeWini=time.time()
+            
+    def defpressMove(self,event): #for moving defender in response to
+                                    #arrow keys
+        if  self.nextMove==True:
+            if event.keysym=="Up":
+                self.moveDefender(-1,0) #opposite movement
+                self.botrotDir=(-1,0)
+            elif event.keysym=="Down":
+                self.moveDefender(1,0)
+                self.botrotDir=(1,0)
+            elif event.keysym=="Right":
+                self.moveDefender(0,1)
+                self.botrotDir=(0,1)
+            elif event.keysym=="Left":
+                self.moveDefender(0,-1)
+                self.botrotDir=(0,-1)
+                        
+
+    def switchPress(self,event): #used to switch between enemy bots
+        positions={}
+        i=0
+        if event.char=="q": # q for switching
+            initialCount=self.switchCount
+            self.switchCount+=1 #keeps count of the bots
+            for row in xrange(self.rows):
+                for col in xrange(self.cols):
+                    if self.board[row][col]!=None:
+                        if (self.board[row][col]=="enemy0"):
+                            positions[i]=(row,col)
+                            i+=1
+                        elif (self.board[row][col]=="enemy1"):
+                            positions[i]=(row,col)
+                            i+=1
+                        elif (self.board[row][col]=="Uenemy"):
+                            positions[i]=(row,col)
+                            i+=1
+            self.swap(positions,initialCount)
+            
+
+    def swap(self,positions,initialCount):#swaps the enemy bots                                       
+        count=0
+        if len(positions)==3:
+            initialCount%=3
+            for key in positions:               
+                if key==initialCount:
+                    (row,col)=positions[key]
+                    count+=1
+                if key==(initialCount+1)%3:
+                    (row2,col2)=positions[key]
+                    count+=1
+            if count==2:
+                (self.board[row][col],
+                self.board[row2][col2])=(self.board[row2][col2],
+                                                       self.board[row][col])
+        elif len(positions)==2:
+            self.swapHelper(initialCount,positions,count)
+            
+            
+    def swapHelper(self,initialCount,positions,count):#helps in swapping
+         initialCount%=2
+         for key in positions:
+             if key==initialCount:
+                 (row,col)=positions[key]
+                 count+=1
+             if key==(initialCount+1)%2:
+                 (row2,col2)=positions[key]
+                 count+=1
+         if count==2:
+             (self.board[row][col],
+              self.board[row2][col2])=(self.board[row2][col2],
+                                                   self.board[row][col])
+             
+                                                             
+    def keyPressed(self,event):#responds to key presses
+        if event.char=="p":
+            if self.timerStop==False:
+                self.timerStop=True
+                self.ispaused=True
+            else:
+                self.ispaused=False
+                self.timerStop=False
+            self.redrawAll()
+        elif self.timerStop==False:
+            if self.gameOn==True:
+                self.isgameOver()
+                if self.gameOver==False:
+                    if self.selection=="Defender":
+                        self.defpressMove(event)
+                        self.shooting(event)
+                    else:
+                        self.switchPress(event)
+                        self.enemypressMove(event)
+                        self.enemypressBulMove(event) #makes enemy bullet move
+                    self.redrawAll()
+            else: #if game is off
+                if event.keysym=="Return":               
+                    self.optionScreenOn=True #switch to options screen
+                    self.splashscreenOn=False #switch the flashcreen off
+                    self.drawoptionScreen()  #make it only once
+            
+
+    def enemypressMove(self,event): #to make the enemy move
+        if self.enemyUsernextMove==True:
+            if event.keysym=="Up":
+                self.moveUserEnemy(-1,0) #opposite movement
+                self.UenemybotrotDir=(-1,0)
+            elif event.keysym=="Down":
+                self.moveUserEnemy(1,0)
+                self.UenemybotrotDir=(1,0)
+            elif event.keysym=="Right":
+                self.moveUserEnemy(0,1)
+                self.UenemybotrotDir=(0,1)
+            elif event.keysym=="Left":
+                self.moveUserEnemy(0,-1)
+                self.UenemybotrotDir=(0,-1)
+
+    def moveUserEnemy(self,drow,dcol): #to make user enemy move
+        for nrow in xrange(self.rows): #find Uenemy Location
+            for ncol in xrange(self.cols):
+                    if (self.board[nrow][ncol]=="Uenemy" or
+                        self.board[nrow][ncol]=="DUenemy"):
+                        (row,col)=(nrow,ncol)                                   
+        (newRow,newCol)=(row+drow,col+dcol)
+        # this part is in charge of moving in a given direction
+        if (newRow<=(self.rows-1) and newRow>=0 and
+                newCol<=(self.cols-1) and newCol>=0):
+            if self.board[newRow][newCol]!=None:
+                if (self.board[newRow][newCol]=="Defender" or
+                    self.board[newRow][newCol]=="NDefender"):
+                    self.swapEnemyUser(row,col)
+                    self.hitCount[self.board[row][col]]=3
+                    self.totalenenmyLives=self.liveCounter()
+                    self.board[newRow][newCol]="Defender"
+                    self.totalDefenderLives-=3
+                    self.DefenderHits+=3
+                    self.board[row][col]=None
+            elif self.board[newRow][newCol]==None:#placing the enemy again
+                self.board[newRow][newCol]="DUenemy"
+                self.enemyUsernextMove=False
+                self.board[row][col]=None
+                                         
+        
+    def  moveUserDefenderbot(self):
+        if  self.nextMove==True:
+            for nrow in xrange(self.rows):
+                for ncol in xrange(self.cols):
+                        if self.board[nrow][ncol]=="Defender":
+                            (row,col)=(nrow,ncol)
+            (drow,dcol)=self.randomizeDir()
+            d={}                       
+            #if move not possible, choose a new direction
+            if self.legalUserMove(row,col)==False:
+                (drow,dcol)=self.randomizeDir()
+            else:
+                (drow,dcol)=self.userDefenderbotmoves[self.board[row][col]]
+            (newRow,newCol)=(row+drow,col+dcol)
+            self.helpmoveUserDefenderbot(newRow,newCol,row,col,drow,dcol)
+            # this part is in charge of moving in a given direction
+            
+    #to help moveUserDefender
+    def helpmoveUserDefenderbot(self,newRow,newCol,row,col,drow,dcol):
+        if (newRow<=(self.rows-1) and newRow>=0 and
+                    newCol<=(self.cols-1) and newCol>=0):
+                self.botrotDir=(drow,dcol)
+                if self.board[newRow][newCol]!=None:
+                    if (self.board[newRow][newCol][0:5]=="enemy"
+                        or self.board[newRow][newCol]=="Uenemy") :
+                        if self.board[newRow][newCol]=="Uenemy":
+                            self.swapEnemyUser(newRow,newCol)
+                        self.hitCount[self.board[newRow][newCol]]=3
+                        self.totalenenmyLives=self.liveCounter()
+                        self.board[newRow][newCol]="Defender"
+                        self.totalDefenderLives-=3
+                        self.DefenderHits+=3
+                        self.board[row][col]=None                      
+                elif self.board[newRow][newCol]==None:
+                    self.userDefenderbotmoves[self.board[row][col]]=(drow,dcol)                                                   
+                    #placing the Defender again
+                    self.board[newRow][newCol]="NDefender"
+                    self.board[row][col]=None
+                    self.nextMove=False
+        
+                            
+    def legalUserMove(self,row,col):#checks if the move is legal
+        (drow,dcol)=self.userDefenderbotmoves[self.board[row][col]]
+        (newRow,newCol)=(row+drow,col+dcol)
+        if (newRow<=(self.rows-1) and newRow>=0 and
+                            newCol<=(self.cols-1) and newCol>=0):
+            if self.board[newRow][newCol]==None:
+                return True
+        return False
+
+
+    def userBotBullet(self):#fires the bullet by user bot
+        if self.nextMove==True:
+            (row,col)=self.findDefender() #position of defender
+            (drow,dcol)=self.randomizeDir()
+            (newrow,newcol)=(row+drow,col+dcol)
+            
+            if (newrow<=(self.rows-1) and newrow>=0 and 
+                newcol<=(self.cols-1) and newcol>=0):
+                bultype='u' #inits the bullet type
+                self.botrotDir=(drow,dcol)
+                if self.board[newrow][newcol]==None:
+                    self.board[newrow][newcol]=((newrow,newcol)
+                                                ,(drow,dcol),bultype)
+                    self.botrotDir=(drow,dcol)
+                else:               
+                    self.checkHit(newrow,newcol,bultype)
+                    
+    def enemypressBulMove(self,event): #for making enemy bullet move
+        if self.enemyUsernextMove==True:
+            self.timeWfin=time.time()
+            if self.timeWfin - self.timeWini>0.500:
+                if event.keysym=="space":
+                    self.myEnemy() #opposite movement
+                self.timeWini = time.time()                          
+ ## user enemy
+    def myEnemy(self): #for the bullets by user enemy
+       (drow,dcol)=self.UenemybotrotDir
+       for row in xrange(self.rows):
+            for col in xrange(self.cols):
+                if self.board[row][col]!=None:
+                    if self.board[row][col]=="Uenemy":
+                        (newrow,newcol)=(row+drow,col+dcol)
+                        if (newrow<=(self.rows-1) and newrow>=0 and 
+                                newcol<=(self.cols-1) and newcol>=0):
+                            if self.board[newrow][newcol]==None:
+                                self.board[newrow][newcol]=((newrow,newcol),
+                                                            (drow,dcol),'e')
+                            else:
+                                bultype='e' #bultype is the type of bullet
+                                self.checkHit(newrow,newcol,bultype)
+
+    def button1Pressed(self):#to start the game
+        self.timeX=time.time()
+        self.countdown=True #starts timer
+        self.optionScreenOn=False
+        self.redrawAll()
+
+        
+    def button2Pressed(self): #to chose side to play-Defender
+        self.selection="Defender"
+        for row in xrange(self.rows):
+            for col in xrange(self.cols):
+                if self.board[row][col]!=None:
+                    if (self.board[row][col][0:5]=="enemy" or
+                        self.board[row][col]=="Defender" or
+                        self.board[row][col]=="Uenemy" or
+                        self.board[row][col]=="powerUp" or
+                        self.board[row][col]=="eagle"):
+                        self.board[row][col]=None
+        self.init(self.board,self.backColor)
+        self.drawoptionScreen()
+
+    def button3Pressed(self):#to chose side to play - Enemy
+        self.selection="enemy"
+        for row in xrange(self.rows):
+            for col in xrange(self.cols):
+                if self.board[row][col]!=None:
+                    if (self.board[row][col][0:5]=="enemy" or
+                        self.board[row][col]=="Defender" or
+                        self.board[row][col]=="Uenemy" or
+                        self.board[row][col]=="powerUp" or
+                        self.board[row][col]=="eagle"):
+                        self.board[row][col]=None
+        self.init(self.board,self.backColor)
+        self.drawoptionScreen()
+       
+    def drawoptionScreen(self): #screen with options for players
+        self.button1 = Button(self.canvas, text="Start Game",
+                              command=self.button1Pressed)
+        self.button2= Button(self.canvas, text="Defender",
+                              command=self.button2Pressed)
+        self.button3= Button(self.canvas, text="Enemies",
+                              command=self.button3Pressed)
+        margin=self.margin
+        self.canvas.create_rectangle(margin,margin,self.width-margin,
+                                     self.height-margin,fill="black")
+        self.canvas.create_image(margin,margin/2, image = self.gif1,anchor=NW)
+        msg = "Player Options (Choose One) : "
+        left=self.margin*2+(margin/3)*2
+        top =self.height/2+ margin/2
+        self.canvas.create_text(left,top,text=msg,
+                                font=" Arial 22 bold",fill= "brown")
+        self.choosePlayer()
+        self.drawoptionHelp(left,margin,top)
+        
+    def drawoptionHelp(self,left,margin,top):
+        # to help option screen in drawing
+        self.canvas.create_window(left+(margin*13)/4,
+                                  self.height/3+5 + 2*margin,
+                                  window=self.button2)
+        self.canvas.create_window(left+5*margin, self.height/3+5 + 2*margin,
+                                  window=self.button3)
+        self.canvas.create_window(self.width/2, self.height/2 + 3*margin,
+                                  window=self.button1)
+        msg4= " A Sharangdhar Chakraborty Production. "
+        self.canvas.create_text(self.width-margin*4,self.height-margin
+                                ,text=msg4,
+                                font=" Arial 14 bold italic",
+                                fill="brown",anchor=SW)
+        
+
+    def choosePlayer(self): #to chose the side
+        if self.selection=="Defender":
+            self.other = " Enemies "
+            self.choice = " Defender"
+        elif self.selection=="enemy":
+            self.other = "Defender"
+            self.choice = " Enemies"
+        margin=self.margin
+        msg1 = "User : %s"%(self.choice)
+        msg2= " CPU : %s"%(self.other)
+        left=self.width/2
+        top =self.height/2+ margin*(2.5/2)
+        self.canvas.create_text(left,top,text=msg1,
+                                font=" Arial 18 bold",fill= "brown")
+        top =self.height/2+ (margin/2)*4
+        self.canvas.create_text(left,top,text=msg2,
+                                font=" Arial 18 bold",fill= "brown")
+    
+        
+    def drawScore(self): #to draw the score on the top
+        margin=self.margin
+        msg = "Lives Left : "
+        (left,top)=(margin*(3.0/2),margin/2)
+        self.canvas.create_text((left*3.0)/2,top+8,text=msg,
+                                font=" Arial 20 bold",fill= "grey")
+        if self.selection=="Defender":
+            userPlayer=" User : "
+            cpuPlayer="  CPU : "
+        else:
+            cpuPlayer=" User : "
+            userPlayer=" CPU : "
+        Defpercent=((1.0*self.totalDefenderLives)/self.DefendermaxHits)*100
+        msg ="%s Defender Life : %0.2f" %(userPlayer,Defpercent)+ "%"
+        self.canvas.create_text(left*3,top,text=msg,
+                                font=" Arial 14 bold italic",fill= "white")
+        self.drawlifeBar(self.margin*6,top-10,"Defender")
+        Enempercent=((1.0*self.totalenenmyLives)/(self.enemymaxHits*3))*100
+        msg =" %s Enemy Lives : %0.2f" %(cpuPlayer,Enempercent)+"%"
+        self.canvas.create_text(left*3,top+self.margin/5,text=msg,
+                                font=" Arial 14 bold italic",fill= "white")
+        self.drawlifeBar(self.margin*6,top+self.margin/5-5,"enemy")
+        msg = """ Eagle Life Left
+                %s"""%(self.eaglelife)
+        self.canvas.create_text(left*5+margin,top+margin/7,text=msg,
+                                font=" Arial 14 bold italic",fill= "white")
+        
+
+    def drawlifeBar(self,left,top,typ):
+        #draws life bar at top of the game
+        if typ=="enemy":
+            color="grey"
+            size=self.totalenenmyLives
+        else:
+            color ="green"
+            if self.totalDefenderLives>self.DefendermaxHits:
+                self.totalDefenderLives=self.DefendermaxHits
+            size=self.totalDefenderLives
+        cellsize=self.cellsize/2 #15
+        margin=2
+        right = left+(self.DefendermaxHits)*cellsize
+        bottom= top + cellsize
+        self.canvas.create_rectangle(left,top,right,bottom,fill="brown")
+        left=left+margin
+        top+=margin
+        bottom= top +cellsize - margin
+        for i in xrange(size):
+            right=left+cellsize-margin
+            self.canvas.create_rectangle(left,top,right,bottom,fill=color)
+            left+=cellsize
+        
+
+    def drawGameOver(self):#draws gameOver
+        msg= """Game Over....%s wins !!
+        """%(self.winner)
+        self.canvas.create_text(self.width/2,self.height/2,text=msg,
+                                font=" Arial 36 bold",fill="white")
+        
+
+        
+    def drawBoard(self): #draws the board
+        margin=self.margin
+        bord=margin/10
+        self.canvas.create_rectangle(margin-margin/bord,margin-margin/bord,
+                                     self.width-margin+margin/bord,
+                                     self.height-margin+margin/bord
+                                     ,fill="white")
+        self.canvas.create_rectangle(margin,margin,self.width-margin,
+                                     self.height-margin,fill=self.backColor)
+        self.drawBoardHelper() #helper function                   
+        self.drawnameGame() #drawss the name of game
+
+    def drawBoardHelper(self):#draws everything on board
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if self.board[row][col]!=None:
+                    if self.board[row][col][0:5]=="block":
+                        self.drawBlock(row,col,"brown")
+                    elif self.board[row][col]=="grass":
+                        self.drawBlock(row,col,"green")
+                    elif self.board[row][col]=="Defender":
+                        self.drawBlock(row,col,"blue")
+                    elif self.board[row][col]=="NDefender": #animation
+                        self.dramAnimDefender(row,col)
+                    elif self.board[row][col][0:5]=="enemy":
+                        self.drawBlock(row,col,"black")
+                    elif self.board[row][col][0:6]=="Nenemy":
+                        self.drawAnimEnemy(row,col)
+                    elif self.board[row][col]=="Uenemy":
+                        self.drawBlock(row,col,"black")
+                    elif self.board[row][col]=="DUenemy":
+                        self.drawAniUE(row,col)
+                    elif type(self.board[row][col])==tuple:
+                        self.drawBlock(row,col,"yellow")
+                    elif self.board[row][col]=="powerUp":
+                        self.drawBlock(row,col,"black")
+                    elif self.board[row][col]=="eagle":
+                        self.eagledrawCount+=1
+                        self.drawBlock(row,col,"black") 
+        
+    def drawAniUE(self,row,col): #animation for user enemy bot
+        if self.enemyUsernextMove==False:
+            cellsize=self.cellsize
+            margin=self.margin
+            if self.UenemybotrotDir==(-1,0) or self.UenemybotrotDir==(1,0): 
+                if self.UenemybotrotDir==(-1,0):
+                    self.ufinalx=cellsize*col + margin
+                    self.ufinaly= row*cellsize + margin #final y or top
+                    self.upresenty=self.ufinaly +cellsize-6*self.u 
+                    self.UenemImage(self.ufinalx,self.upresenty)
+                elif self.UenemybotrotDir==(1,0): #south
+                    self.ufinalx=cellsize*col + margin
+                    self.ufinaly= (row)*cellsize + margin #final y or top
+                    self.upresenty=(row-1)*cellsize+margin + 6*self.u 
+                    self.UenemImage(self.ufinalx,self.upresenty)               
+                if self.upresenty==self.ufinaly:
+                    self.board[row][col]="Uenemy"
+                    self.enemyUsernextMove=True
+            self.drawAniUEHelper(row,col,cellsize,margin)
+            if self.u==5: #updating self.u
+                self.u=1
+            else:
+                self.u +=1
+
+    def drawAniUEHelper(self,row,col,cellsize,margin):#helper
+        if self.UenemybotrotDir==(0,1) or self.UenemybotrotDir==(0,-1):
+            if self.UenemybotrotDir==(0,1):#east
+                self.ufinaly= row*cellsize + margin #final y or top
+                self.ufinalx=cellsize*(col) + margin
+                self.upresentx=cellsize*(col-1) + margin + self.u*6 
+                self.UenemImage(self.upresentx,self.ufinaly)
+            elif self.UenemybotrotDir==(0,-1): #west
+                self.ufinaly= row*cellsize + margin #final y or top
+                self.ufinalx=cellsize*(col) + margin
+                self.upresentx=cellsize*(col+1) + margin - self.u*6 
+                self.UenemImage(self.upresentx,self.ufinaly)
+            if self.upresentx==self.ufinalx:
+                self.board[row][col]="Uenemy"
+                self.enemyUsernextMove=True
+
+    
+    def drawAnimEnemy(self,row,col):#for animation in enemy
+        ind=self.board[row][col][6:7]
+        cellsize=self.cellsize
+        margin=self.margin
+        self.j=self.dictJ[ind] #gives the value of j for that enemy
+        if self.enemybotDir[ind]==(-1,0) or self.enemybotDir[ind]==(1,0):
+            if self.enemybotDir[ind]==(-1,0):
+                self.efinalx=cellsize*col + margin
+                self.efinaly= row*cellsize + margin #final y or top
+                self.epresenty=self.efinaly +cellsize-6*self.j 
+                self.enemImage(self.efinalx,self.epresenty,ind)
+            elif self.enemybotDir[ind]==(1,0): #south
+                self.efinalx=cellsize*col + margin
+                self.efinaly= (row)*cellsize + margin #final y or top
+                self.epresenty=(row-1)*cellsize+margin + 6*self.j 
+                self.enemImage(self.efinalx,self.epresenty,ind)               
+            if self.epresenty==self.efinaly:
+                self.board[row][col]="enemy%s" %(ind)
+                self.enemynextMove=True
+        self.drawAnimEnemyHelper(row,col,margin,cellsize,ind)
+        if self.j==5:
+            self.j=1
+        else:
+            self.j +=1
+        self.dictJ[ind]=self.j
+        
+    def drawAnimEnemyHelper(self,row,col,margin,cellsize,ind): #helper      
+        if self.enemybotDir[ind]==(0,1) or self.enemybotDir[ind]==(0,-1): 
+            if self.enemybotDir[ind]==(0,1):#east
+                self.efinaly= row*cellsize + margin #final y or top
+                self.efinalx=cellsize*(col) + margin
+                self.epresentx=cellsize*(col-1) + margin + self.j*6 
+                self.enemImage(self.epresentx,self.efinaly,ind)
+            elif self.enemybotDir[ind]==(0,-1): #west
+                self.efinaly= row*cellsize + margin #final y or top
+                self.efinalx=cellsize*(col) + margin
+                self.epresentx=cellsize*(col+1) + margin - self.j*6 
+                self.enemImage(self.epresentx,self.efinaly,ind)
+            if self.epresentx==self.efinalx:
+                self.board[row][col]="enemy%s" %(ind) #puts the right enemy
+                self.enemynextMove=True
+        
+
+    def dramAnimDefender(self,row,col):#to animate the defender
+        if self.nextMove==False:
+            cellsize=self.cellsize
+            margin=self.margin
+            if self.botrotDir==(-1,0) or self.botrotDir==(1,0): #north
+                if self.botrotDir==(-1,0):
+                    self.finalx=cellsize*col + margin
+                    self.finaly= row*cellsize + margin #final y or top
+                    self.presenty=self.finaly +cellsize-6*self.i 
+                    self.userBotImageRot(self.finalx,self.presenty)
+                elif self.botrotDir==(1,0): #south
+                    self.finalx=cellsize*col + margin
+                    self.finaly= (row)*cellsize + margin #final y or top
+                    self.presenty=(row-1)*cellsize+margin + 6*self.i 
+                    self.userBotImageRot(self.finalx,self.presenty)               
+                if self.presenty==self.finaly:
+                    self.board[row][col]="Defender"
+                    self.nextMove=True
+            self.dramAnimDefenderHelper(row,col,margin,cellsize)
+            if self.i==5:
+                self.i=1
+            else:
+                self.i +=1
+       
+    def dramAnimDefenderHelper(self,row,col,margin,cellsize):
+        #helper for smooth animation
+        if self.botrotDir==(0,1) or self.botrotDir==(0,-1): 
+                if self.botrotDir==(0,1):#east
+                    self.finaly= row*cellsize + margin #final y or top
+                    self.finalx=cellsize*(col) + margin
+                    self.presentx=cellsize*(col-1) + margin + self.i*6 
+                    self.userBotImageRot(self.presentx,self.finaly)
+                elif self.botrotDir==(0,-1): #west
+                    self.finaly= row*cellsize + margin #final y or top
+                    self.finalx=cellsize*(col) + margin
+                    self.presentx=cellsize*(col+1) + margin - self.i*6 
+                    self.userBotImageRot(self.presentx,self.finaly)
+                if self.presentx==self.finalx:
+                    self.board[row][col]="Defender"
+                    self.nextMove=True
+        
+        
+    def drawBlock(self,row,col,color):#to draw images on screen
+        cellsize=self.cellsize
+        margin=self.margin
+        (left,top)=(cellsize*col + margin,row*cellsize + margin)
+        (right,bottom)=(left +cellsize,top +cellsize)
+        if color=="yellow": #creates bullets
+            self.bulimage(left,top,row,col)
+        else:
+            # will change
+            if self.board[row][col][0:5]=="block":
+                self.drawdiffBlock(left,top,row,col)
+            elif self.board[row][col]=="grass":
+                self.canvas.create_image(left,top,image=self.grass,anchor=NW)
+            elif self.board[row][col]=="powerUp":
+                self.canvas.create_image(left,top,image=self.powerup,anchor=NW)
+            elif  self.board[row][col]=="eagle" and self.eagledrawCount%2==1:
+                self.canvas.create_image(left+cellsize/2,top,image=self.eagle,
+                                         anchor=NW)
+            else:
+                if self.board[row][col][0:5]=="enemy":
+                    self.enemImage(left,top,self.board[row][col][5:6])
+                elif self.board[row][col]== "Defender":#Defender
+                    self.userBotImageRot(left,top)
+                elif  self.board[row][col]=="Uenemy":
+                    self.UenemImage(left,top)
+                    self.canvas.create_text(left+15,top+15,text="UE")
+  
+    def enemImage(self,left,top,ind): #draws rotated enemy on screen
+        if self.enemybotDir[ind]==(-1,0): #north
+            self.canvas.create_image(left,top, image = self.enemyN ,anchor=NW)
+        elif self.enemybotDir[ind]==(1,0): #south
+            self.canvas.create_image(left,top, image = self.enemyS,anchor=NW)
+        elif self.enemybotDir[ind]==(0,-1): #west
+            self.canvas.create_image(left,top, image = self.enemyW,anchor=NW)
+        elif self.enemybotDir[ind]==(0,1): #east
+            self.canvas.create_image(left,top, image = self.enemyE,anchor=NW)
+       
+        
+
+    def UenemImage(self,left,top): #draws rotated Uenemy on screen
+        if self.UenemybotrotDir==(-1,0): #north
+            self.canvas.create_image(left,top, image = self.UenemyN,anchor=NW)
+        elif self.UenemybotrotDir==(1,0): #south
+            self.canvas.create_image(left,top, image = self.UenemyS,anchor=NW)
+        elif self.UenemybotrotDir==(0,-1): #west
+            self.canvas.create_image(left,top, image = self.UenemyW,anchor=NW)
+        elif self.UenemybotrotDir==(0,1): #east
+            self.canvas.create_image(left,top, image = self.UenemyE,anchor=NW)
+
+
+    def userBotImageRot(self,left,top):  #draws rotated Defender on screen
+        if self.botrotDir==(-1,0): #north
+            self.canvas.create_image(left,top, image = self.DefN,anchor=NW)
+        elif self.botrotDir==(1,0): #south
+            self.canvas.create_image(left,top, image = self.DefS,anchor=NW)
+        elif self.botrotDir==(0,1): #east
+            self.canvas.create_image(left,top, image = self.DefE,anchor=NW)
+        elif self.botrotDir==(0,-1): #west
+            self.canvas.create_image(left,top, image = self.DefW,anchor=NW)
+        else:
+            self.canvas.create_image(left,top, image = self.DefN,anchor=NW)
+                    
+    def bulimage(self,left,top,row,col):#draws bullet on screen
+        if self.board[row][col][1]==(-1,0): #north
+            self.canvas.create_image(left,top, image = self.bulletN,anchor=NW)
+        elif self.board[row][col][1]==(1,0): #south
+            self.canvas.create_image(left,top, image = self.bulletS,anchor=NW)
+        elif self.board[row][col][1]==(0,1): #east
+            self.canvas.create_image(left,top, image = self.bulletE,anchor=NW)
+        elif self.board[row][col][1]==(0,-1): #west
+            self.canvas.create_image(left,top, image = self.bulletW,anchor=NW)
+
+
+    def drawdiffBlock(self,left,top,row,col):#draws different blocks
+        if self.board[row][col]=="block":
+            self.canvas.create_image(left,top, image = self.block1,anchor=NW)
+        elif self.board[row][col]=="block2":
+            self.canvas.create_image(left,top, image = self.block2,anchor=NW)
+        elif self.board[row][col]=="block3":
+            self.canvas.create_image(left,top, image = self.block3,anchor=NW)
+        
+            
+    def initEnemy(self): #initializes enemy at random on board
+        count=0
+        if self.selection=="Defender":
+            while count<3: #3 is the total number of enemies allowed on board
+                row=random.randint(0,self.rows-1)
+                col=random.randint(0,self.cols-1)
+                if self.board[row][col]==None: 
+                    self.board[row][col]="enemy%d"%(count)
+                    self.hitCount[self.board[row][col]]=0
+                    count+=1
+        else:
+            while count<2: #3 is the total number of enemies allowed on board
+                row=random.randint(0,self.rows-1)
+                col=random.randint(0,self.cols-1)
+                if self.board[row][col]==None: 
+                    self.board[row][col]="enemy%d"%(count)
+                    self.hitCount[self.board[row][col]]=0
+                    count+=1
+            self.board[0][self.cols/2]="Uenemy" #puts user enemy on board
+            self.hitCount["Uenemy"]=0
+            
+
+    def isgameOver(self):#checks if game is over
+        defendercount=0
+        enemycount=0
+        eaglecount=0
+        for row in xrange(self.rows):
+            for col in xrange(self.cols):
+                if (self.board[row][col]=="Defender" or
+                    self.board[row][col]=="NDefender"): 
+                    defendercount+=1
+                if self.board[row][col]=="eagle":
+                    eaglecount+=1
+                if self.board[row][col]!=None:
+                    if (self.board[row][col][0:5]=="enemy" or
+                        self.board[row][col]=="Uenemy" or
+                        self.board[row][col][0:6]=="Nenemy" or
+                        self.board[row][col]=="DUenemy"):
+                        enemycount+=1
+        if defendercount==0 or eaglecount==0:#checks if eagle alive
+            self.winner="Enemies"
+            self.gameOver=True
+        if enemycount==0:
+            self.winner="Defender"
+            self.gameOver=True
+
+
+    def drawnameGame(self): #draws the name of the game
+        cellsize=self.cellsize
+        margin=self.margin
+        left=cellsize*3 + margin
+        top= (self.rows-3)*cellsize + margin
+        self.canvas.create_text(left,top,text="BaTTle",fill="Black",
+                                font="comicsans 36 bold")
+        left= (self.rows-3)*cellsize + margin
+        self.canvas.create_text(left,top,text="CiTy",fill="Black",
+                               font="comicsans 36 bold")
+        
+    def findDefender(self): #finds the defender on the board
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if self.board[row][col]=="Defender":
+                    return (row,col)
+                
+    def testfindDefender(self): #passes test
+        self.rows=5
+        self.cols=5
+        self.board=[[None]*self.cols for i in xrange(self.rows)]
+        self.board[2][3]="Defender"
+        assert(self.findDefender()==(2,3))
+        print "Passed..!!"
+        
+    def moveBullet(self):
+        d={}
+        for row in xrange(self.rows):
+            for col in xrange(self.cols):
+                if type(self.board[row][col])==tuple:
+                    (curRow,curCol)=self.board[row][col][0]
+                    bultype=self.board[row][col][2]
+                    (drow,dcol)=self.board[row][col][1]
+                    (newRow,newCol)=(curRow+drow,curCol+dcol)
+                    #wont account for collision
+                    if (newRow<=(self.rows-1) and newRow>=0 and
+                            newCol<=(self.cols-1) and newCol>=0):
+                        if self.board[newRow][newCol]==None:
+                            d[(newRow,newCol)]=((newRow,newCol),
+                                                        (drow,dcol),bultype)
+                            self.board[newRow][newCol]= """((newRow,newCol),
+                                                            (drow,dcol))""" 
+                        else:#when the bullet meets either rock or enemy                           
+                            self.checkHit(newRow,newCol,bultype)                           
+                    self.board[curRow][curCol]=None
+        for key in d:
+            (curRow,curCol)=d[key][0]
+            self.board[curRow][curCol]=d[key]
+            
+    def checkHit(self,newRow,newCol,bultype):#checks who has been hit
+        maxhits=self.enemymaxHits
+        if self.board[newRow][newCol]=="block":
+            self.board[newRow][newCol]="block2"
+        elif self.board[newRow][newCol]=="block2":
+            self.board[newRow][newCol]="block3"
+        elif self.board[newRow][newCol]=="block3":
+            self.board[newRow][newCol]=None
+        elif (self.board[newRow][newCol]=="Defender" or
+            self.board[newRow][newCol]=="NDefender") : #if Defender is shot
+            if bultype=='e':
+                self.DefenderHits+=1  #count of Defender hits 
+                if self.DefenderHits>=self.DefendermaxHits:
+                    self.board[newRow][newCol]=None
+                self.totalDefenderLives-=1
+        elif self.board[newRow][newCol]=="eagle":
+            if bultype=="e":
+                self.eaglelife-=1
+                if self.eaglelife==0:
+                    self.board[self.rows-1][self.cols/2]=None
+                    self.board[self.rows-1][self.cols/2-1]=None
+        elif (self.board[newRow][newCol][0:5]=="enemy" or
+              self.board[newRow][newCol]=="Uenemy" or
+              self.board[newRow][newCol]=="NUenemy" or
+              self.board[newRow][newCol][0:6]=="Nenemy") :#if enemy is shot
+            self.checkHitHelp(newRow,newCol,maxhits,bultype)
+            
+    def checkHitHelp(self,newRow,newCol,maxhits,bultype):
+        if bultype=='u': #if it is a user bullet        
+            if self.board[newRow][newCol]=="NUenemy":
+                self.hitCount["Uenemy"]+=1
+                if self.hitCount["Uenemy"]>=maxhits:
+                    self.swapEnemyUser(newRow,newCol)
+                    self.board[newRow][newCol]=None                   
+            elif self.board[newRow][newCol][0:6]=="Nenemy":
+                ind=self.board[newRow][newCol][6:7]
+                player="enemy%s"%ind
+                self.hitCount[player]+=1
+                if self.hitCount[player]>=maxhits:
+                    self.board[newRow][newCol]=None
+            else:
+                self.hitCount[self.board[newRow][newCol]]+=1
+                #increase the hit for
+                if self.hitCount[self.board[newRow][newCol]]>=maxhits: 
+                    if self.board[newRow][newCol]=="Uenemy":
+                        self.swapEnemyUser(newRow,newCol) 
+                    self.board[newRow][newCol]=None
+            self.totalenenmyLives=self.liveCounter()
+
+
+    def liveCounter(self): #keeps track of the number of enemy lives
+        total=0
+        for key in self.hitCount:
+            total+=self.hitCount[key]
+        return self.enemymaxHits*3 - total
+
+
+    def testliveCounter(self): #passes test
+        print "Testing liveCounter()...",
+        self.hitCount={1:3,2:3}
+        self.enemymaxHits=4
+        assert(self.liveCounter()==6)
+        self.hitCount={1:4,2:3}
+        self.enemymaxHits=5
+        assert(self.liveCounter()==8)
+        self.hitCount={1:4,2:7}
+        self.enemymaxHits=5
+        assert(self.liveCounter()==4)
+        print "Passed!"
+
+    def swapEnemyUser(self,newRow,newCol):#swaps the enemyUser after
+                                        #pressing q
+        count=0
+        for row in xrange(self.rows):
+            for col in xrange(self.cols):
+                if self.board[row][col]!=None:
+                    if (self.board[row][col][0:5]=="enemy" or
+                        self.board[row][col][0:6]=="Nenemy"):
+                        count+=1
+                        (rowSwap,colSwap)=(row,col)
+        if count==1 or count==2:
+            if self.board[rowSwap][colSwap][0:6]=="Nenemy":
+                ind= self.board[rowSwap][colSwap][6:7]                       
+                player="enemy%s" %ind
+            else:
+                player=self.board[rowSwap][colSwap]
+            self.hitCount["Uenemy"]=self.hitCount[player]
+            (self.board[rowSwap][colSwap],
+             self.board[newRow][newCol])=(self.board[newRow][newCol],
+                                          player)
+        self.liveCounter()
+
+            
+    def DefenderBullet(self): #initializes defender bullet
+        (drow,dcol)=self.botrotDir
+        (urow,ucol)=self.findDefender()
+        (newrow,newcol)=(urow+drow,ucol+dcol)
+        if (newrow<=(self.rows-1) and newrow>=0 and 
+            newcol<=(self.cols-1) and newcol>=0):
+            if self.board[newrow][newcol]==None:
+                self.board[newrow][newcol]=((newrow,newcol),(drow,dcol),'u')
+            else:
+                bultype='u'
+                self.checkHit(newrow,newcol,bultype)
+                
+
+    def enemyBullet(self): #gives bullets to each enemy #make a bullet limit
+        if self.enemynextMove==True:
+            for row in xrange(self.rows):
+                for col in xrange(self.cols):
+                    if self.board[row][col]!=None:
+                        if self.board[row][col][0:5]=="enemy":
+                            (drow,dcol)=self.randomizeDir()
+                            (newrow,newcol)=(row+drow,col+dcol)
+                            if (newrow<=(self.rows-1) and newrow>=0 and 
+                                    newcol<=(self.cols-1) and newcol>=0):
+                                self.enemyBulletHelper(newrow,newcol
+                                                       ,drow,dcol,row,col)
+ 
+                        
+    def enemyBulletHelper(self,newrow,newcol,drow,dcol,row,col):
+        #helps in enemybullet
+        self.enemybotDir[self.board[row][col][5:6]]=(drow,dcol)
+        if self.board[newrow][newcol]==None:
+            self.board[newrow][newcol]=((newrow,newcol),
+                                        (drow,dcol),'e')
+        else:
+            bultype='e' #bultype is the type of bullet
+            self.checkHit(newrow,newcol,bultype)
+        
+                   
+    def powerUps(self): #puts powerUps on board
+        for row in xrange(self.rows):
+            for col in xrange(self.cols):
+                if self.board[row][col]=="powerUp":
+                    self.board[row][col]=None
+        power=False
+        while power==False:
+            row=random.randint(0,self.rows-1)
+            col=random.randint(0,self.cols-1)
+            if self.board[row][col]==None:
+                self.board[row][col]="powerUp"
+                power=True
+        
+    def assignDir(self):##assigns an initial direction to each enemy
+        #choice taken from 'stackoverFlow.com'
+        posdir=[(-1,0),(0,-1),(0,1),(1,0)]
+        for row in xrange(self.rows):
+            for col in xrange(self.cols):
+                if self.board[row][col]!=None:
+                    if self.board[row][col][0:5]=="enemy":
+                        (drow,dcol)=choice(posdir)#choose direction to move in
+                        self.enemyMoves[self.board[row][col]]=((row,col),
+                                                            (drow,dcol))
+    def randomizeDir(self):#gives random directions
+        posdir=[(-1,0),(0,-1),(0,1),(1,0)]
+        (drow,dcol)=choice(posdir)
+        return (drow,dcol)
+
+    def legalMove(self,row,col):#checks if the move going to make
+                                 #is possible or not
+        (drow,dcol)=self.enemyMoves[self.board[row][col]][1]
+        (curRow,curCol)=self.enemyMoves[self.board[row][col]][0]
+        (newRow,newCol)=(curRow+drow,curCol+dcol)
+        if (newRow<=(self.rows-1) and newRow>=0 and
+                                newCol<=(self.cols-1) and newCol>=0):
+            if self.board[newRow][newCol]==None:
+                return True
+        return False
+
+    
+    def moveEnemy(self):  #moves the enemy
+        if self.enemynextMove==True:
+            d={}
+            for row in xrange(self.rows):
+                for col in xrange(self.cols):
+                    if self.board[row][col]!=None:
+                        if self.board[row][col][0:5]=="enemy":
+                            self.moveenemyHelp(row,col,d)                            
+            for key in d:
+                (curRow,curCol)=d[key][0]
+                self.board[curRow][curCol]="Nenemy%s"%(key)
+                self.enemynextMove=False 
+
+    def moveenemyHelp(self,row,col,d):
+        #if move not possible, choose a new direction
+        if self.legalMove(row,col)==False:
+            (drow,dcol)=self.randomizeDir()
+        else:
+            (drow,dcol)=self.enemyMoves[self.board[row][col]][1]
+        (newRow,newCol)=(row+drow,col+dcol)
+        if (newRow<=(self.rows-1) and newRow>=0 and
+                newCol<=(self.cols-1) and newCol>=0):
+            self.enemybotDir[self.board[row][col][5:6]]=(drow,dcol)
+            if self.board[newRow][newCol]!=None:
+                if self.board[newRow][newCol]=="Defender":
+                    self.board[row][col]=None
+                    self.hitCount[self.board[row][col]]=3
+                    self.totalenenmyLives=self.liveCounter()
+                    self.board[newRow][newCol]="Defender"
+                    self.totalDefenderLives-=3
+                    self.DefenderHits+=3
+            elif self.board[newRow][newCol]==None:
+                self.enemyMoves[self.board[row][col]]=((newRow,newCol),
+                                                   (drow,dcol))
+                d[self.board[row][col][5:6]]=((newRow,newCol),
+                                                (drow,dcol))
+                self.board[newRow][newCol]=self.board[row][col][5:6]
+                self.board[row][col]=None 
+
+        
+    def moveDefender(self,drow,dcol):
+        (oldrow,oldcol)=self.findDefender()
+        (newrow,newcol)=(oldrow+drow,oldcol+dcol)               
+        if self.DefenderValidmove(newrow,newcol):
+            self.board[oldrow][oldcol]=None
+            self.board[newrow][newcol]="NDefender"
+            self.nextMove=False
+        else:
+            if (newrow<=(self.rows-1) and newrow>=0 and
+                                newcol<=(self.cols-1) and newcol>=0):
+                if self.board[newrow][newcol][0:5]=="enemy":
+                    self.board[oldrow][oldcol]=None
+                    self.hitCount[self.board[newrow][newcol]]=3
+                    self.totalenenmyLives=self.liveCounter()
+                    self.board[newrow][newcol]="Defender"
+                    self.totalDefenderLives-=3
+                    self.DefenderHits+=3
+                    self.nextMove=True
+                elif self.board[newrow][newcol]=="powerUp":
+                    self.board[oldrow][oldcol]=None
+ #                   self.board[newrow][newcol]="Defender"
+                    self.board[newrow][newcol]="NDefender"
+                    self.nextMove=False
+                    self.totalDefenderLives+=1 #power up gives 1 life
+                else:
+                    self.board[oldrow][oldcol]="Defender"
+            
+    def DefenderValidmove(self,newrow,newcol): #checks if on board not 
+        if (newrow>(self.rows-1) or newrow<0 or newcol>(self.cols-1)
+                or newcol<0):
+            return False
+        elif self.board[newrow][newcol]!=None:
+            return False
+        else:
+            return True 
+        
+    def drawsplashScreen(self): #draws splashscreen
+        margin=self.margin  
+        self.canvas.create_image(self.margin,self.margin/2,
+                                 image = self.gif1,anchor=NW)
+        left=self.width/2
+        top=(self.height/2)+ self.margin
+        msg=""" Instructions:
+
+            Playing as Defender - Kill All Enemies
+            Palying as Enemy - Kill Defender or Eagle
+            
+            Movement - Arrow Keys
+            Shooting: Space Bar
+            If Playing as Enemy - Press Q to switch bots
+            Press P to Pause       """
+            
+        self.canvas.create_text(left,top,text=msg,
+                                font=" Arial 18 bold",fill= "white") 
+        msg =" Press Enter To Continue.... "
+        self.canvas.create_text(left,top+2*margin,text=msg,
+                                font=" Arial 24 bold",fill= "white")
+        msg4= " A Sharangdhar Chakraborty Production. "
+        self.canvas.create_text(self.width-margin*4,self.height-margin
+                    ,text=msg4,font=" Arial 14 bold italic",
+                                fill="brown",anchor=SW)
+        
+
+   
+    def defineBoard(self):#defines the initial board
+        (rows,cols)=(self.rows,self.cols)
+        board=[[None]*rows for i in range(cols)]
+        for row in range((rows/4)*2+1,rows): #puts block initially
+            col=0
+            while col<(row%10):
+                board[row][col]="block"
+                board[row][cols-col-1]="block"
+                col+=1
+        blockerNum=18
+        for col in xrange(self.cols):
+            board[blockerNum][col]="block"
+        for col in range(1,cols,4): #vertical blocks
+            for row in range(1,rows/4):
+                board[row][col]="block"
+                board[row][col+1]="block"
+        board=self.defineboardHelp(copy.deepcopy(board))
+        board=copy.deepcopy(board)
+        return board 
+
+    def defineboardHelp(self,board):
+        (rows,cols)=(self.rows,self.cols)
+        for col in range(1,cols,4): #square blocks
+            for row in range(1,rows,5):
+                board[row][col]="block"
+                board[row+1][col]="block"
+                board[row][col+1]="block"
+                board[row+1][col+1]="block"
+        for row in range((rows/4)*2+1,rows):#puts grass
+            col=0
+            while col<(row%10)-1:
+                board[row][col]="grass"
+                board[row][cols-col-1]="grass"
+                col+=1
+        return board
+
+        
+    def run(self,board,backColor): #the main run function
+        self.root=Tk()
+        self.cellsize=30
+        self.rows=20
+        self.cols=20
+        self.margin=80
+        self.width = self.cols*self.cellsize + 2*self.margin
+        self.height = (self.rows * self.cellsize) + 2*self.margin
+        self.canvas=Canvas(self.root,width=self.width, height=self.height,
+                           bg="black")
+        self.canvas.pack()
+        self.countbut=0
+        self.init(board,backColor)
+        self.countbut=1
+        self.root.bind("<Key>", lambda event: self.keyPressed(event))
+        self.timerFired()
+        self.root.mainloop()
+
+
+############### New Class ################
+        
+class runGame(object): #this makes all the linking windows
+    def init(self,board,color):
+        self.gif1 = PhotoImage(file = 'logo.gif')
+        self.selection="None"
+        self.board=board
+        self.color=color
+        self.drawfirstScreen()
+        
+    def button1Pressed(self): #selects editor
+        self.selection="editor"
+        self.root.destroy()#shut window after use
+
+    def button2Pressed(self):#selects game window
+        self.selection="game"
+        self.root.destroy() #stack overflow.com
+
+    def  button3Pressed(self): 
+        self.drawCredits()#shut window after use
+
+    #http://stackoverflow.com
+    def box(self):
+        self.filename = askopenfilename(defaultextension=".pk")
+    #### thats all #####
+        
+    def  button4Pressed(self): #make changes , choose your board
+        self.box()
+        if self.filename:
+            self.selection="gameEditor"
+            self.root.destroy() #shut window after use
+ 
+    def drawfirstScreen(self): #screen with options for players
+        self.button1= Button(self.canvas, text="Make Your Own Level",
+                              command=self.button1Pressed)
+        self.button2= Button(self.canvas, text="Play Game",
+                              command=self.button2Pressed)
+        self.button3= Button(self.canvas, text="Quit Game",
+                              command=self.button3Pressed)
+        self.button4= Button(self.canvas, text="Play On Own Level",
+                              command=self.button4Pressed)
+        margin=self.margin
+        self.canvas.create_rectangle(margin,margin,self.width-margin,
+                                     self.height-margin,fill="black")
+        self.canvas.create_image(margin,margin/2,image=self.gif1,anchor=NW)
+        msg = "Choose One "
+        left=self.width/2
+        top =self.height/2+ margin/2
+        self.canvas.create_text(left,top,text=msg,
+                                font=" Arial 22 bold",fill= "white")
+        self.canvas.create_window(left-2*margin,top+margin,window=self.button2)
+        self.canvas.create_window(left+2*margin,top+margin,window=self.button4)
+        self.canvas.create_window(left, top+2*margin,window=self.button1)
+        self.canvas.create_window(left, top+3*margin,window=self.button3)
+        msg4= " A Sharangdhar Chakraborty Production. "
+        self.canvas.create_text(self.width-margin*4,self.height-margin,
+                text=msg4,font=" Arial 14 bold italic",fill="brown",anchor=SW)
+        
+    def button5Pressed(self): #destroys window
+        self.root.destroy()
+
+    def drawCredits(self): #draws the credits window
+        self.canvas.delete(ALL)
+        margin=self.margin
+        self.canvas.create_rectangle(0,0,self.width,self.height,fill="black")
+        msg0= "Credits"
+        self.canvas.create_text(self.width/2,margin,text=msg0,
+                                font=" Arial 36 bold underline",fill="brown")
+        msg1= " Course - 15-112 "
+        self.canvas.create_text(5*margin,2*margin,text=msg1,
+                                font=" Arial 22 bold",fill="white")
+        msg2=" Instructor - Professor David Kosbie "
+        self.canvas.create_text(5*margin+margin/4,3*margin,text=msg2,
+                                font=" Arial 22 bold",fill="white")
+        msg3= " Mentor - Jordan Zink "
+        self.canvas.create_text(5*margin+margin/4,4*margin,text=msg3,
+                                font=" Arial 22 bold",fill="white")
+        self.button5 = Button(self.canvas, text="Quit Game",
+                            command=self.button5Pressed)
+        self.canvas.create_window(self.width/2,7*margin,
+                                  window=self.button5)
+        msg4= " A Sharangdhar Chakraborty Production. "
+        self.canvas.create_text(6*margin,self.height-margin,text=msg4,
+                                font=" Arial 14 bold",fill="brown",anchor=SW)
+
+    def readData(self): #reads data when user gives the initial board
+        if self.filename:
+            pkl_file = open(self.filename, 'rb')
+            data1 = pickle.load(pkl_file)
+            (self.board,self.color)=data1
+            pkl_file.close()
+            return True
+        
+    def run(self,board=None,color=None): #the main run function
+        self.root=Tk()
+        self.cellsize=30
+        self.rows=20
+        self.cols=20
+        self.margin=80
+        self.width = self.cols*self.cellsize + 2*self.margin
+        self.height = (self.rows * self.cellsize) + 2*self.margin
+        self.canvas=Canvas(self.root,width=self.width, height=self.height,
+                           bg="black")
+        self.canvas.pack()
+        self.init(board,color)
+        self.root.mainloop()
+        if self.selection=="game":
+            BattleCity().run(None,None)
+            self.run()
+        elif  self.selection=="editor":
+            levelEditor().runEditor()#find way to save stuff here
+            self.run(self.board,self.color)
+        elif self.selection=="gameEditor":
+            if self.readData(): #reads the data #bring the pop up here
+                BattleCity().run(self.board,self.color)
+                self.run(self.board,self.color)
+
+              
+game=runGame() #run the game
+game.run()
+
+
+
+
+
