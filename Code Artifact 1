@@ -1,6 +1,7 @@
 #Note all images taken from google images...
 
 
+#this is just for Git testing purpose
 #there are only Two testfunctions since most of the code is graphics
 ######## Game Begins ###################
 from Tkinter import *
@@ -37,8 +38,7 @@ class BattleCity(object): #battle city class
             self.assignDir()
             self.redrawAll()
             self.timeWini=time.time()
-        
-        
+                
     def initvars(self): #initializes the variables for gameplay
         self.DefenderHits=0
         self.gameOver=False
