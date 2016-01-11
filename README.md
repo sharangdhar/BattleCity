@@ -1,7 +1,7 @@
-112-Term-Project-
+Battle City - Arcade Game
 =================
 
-                                          Arcade Game - Battle City
+                                          112-Term-Project
 
 
 My project is a game called “Battle City”. It is basically an arcade game.
