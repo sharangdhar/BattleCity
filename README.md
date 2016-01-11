@@ -1,5 +1,8 @@
 Battle City - Arcade Game
 =================
+### Gameplay Video 
+https://www.youtube.com/watch?v=ihlMDltoGTY
+
 
                                           112-Term-Project
 
